@@ -14,6 +14,54 @@ interface TargetOptions {
   registry?: string;
 }
 
+function defaultRegistryHost(host?: string, hostAddress?: string) {
+  const registryHost = (hostAddress?.trim() || host?.trim() || '').replace(
+    /\/$/,
+    '',
+  );
+  return registryHost ? `${registryHost}:5000` : undefined;
+}
+
+function buildTargetBody(options: TargetOptions, requireHost = false) {
+  if (requireHost && !options.host) {
+    throw new Error('--host is required');
+  }
+
+  const body: Record<string, unknown> = {};
+  if (options.name !== undefined) body.name = options.name;
+  if (options.host !== undefined) body.host = options.host;
+  if (options.port !== undefined) body.port = Number(options.port);
+  if (options.user !== undefined) body.username = options.user;
+  if (options.key !== undefined) {
+    body.authType = 'key';
+    body.privateKey = options.key;
+  }
+  if (options.password !== undefined) {
+    body.authType = 'password';
+    body.password = options.password;
+  }
+  if (options.sudoPassword !== undefined) body.sudoPassword = options.sudoPassword;
+  if (options.hostAddress !== undefined) body.hostAddress = options.hostAddress;
+  if (options.workspace !== undefined) body.workspaceRoot = options.workspace;
+  if (options.registry !== undefined) body.registryHost = options.registry;
+
+  if (requireHost) {
+    body.name = options.name || options.host;
+    body.port = options.port ? Number(options.port) : 22;
+    body.username = options.user || 'ubuntu';
+    body.authType = options.key ? 'key' : 'password';
+    body.password = options.password;
+    body.privateKey = options.key;
+    body.sudoPassword = options.sudoPassword || options.password;
+    body.hostAddress = options.hostAddress;
+    body.workspaceRoot = options.workspace || '.';
+    body.registryHost =
+      options.registry || defaultRegistryHost(options.host, options.hostAddress);
+  }
+
+  return body;
+}
+
 export async function listTargets() {
   const chalk = await getChalk();
   const targets = await apiFetch('/deployment-targets');
@@ -24,7 +72,7 @@ export async function listTargets() {
   }
 
   const table = await createTable({
-    head: ['ID', 'Name', 'Host', 'User', 'Auth', 'Workspace'],
+    head: ['ID', 'Name', 'Host', 'User', 'Auth', 'Workspace', 'Registry', 'Status'],
   });
 
   for (const target of targets) {
@@ -35,6 +83,8 @@ export async function listTargets() {
       target.username,
       target.authType,
       target.workspaceRoot || '.',
+      target.registryHost || `${target.hostAddress || target.host}:5000`,
+      target.provisionStatus || 'not_provisioned',
     ]);
   }
 
@@ -42,23 +92,7 @@ export async function listTargets() {
 }
 
 export async function createTarget(options: TargetOptions) {
-  if (!options.host) {
-    throw new Error('--host is required');
-  }
-
-  const body = {
-    name: options.name || options.host,
-    host: options.host,
-    port: options.port ? Number(options.port) : 22,
-    username: options.user || 'ubuntu',
-    authType: options.key ? 'key' : 'password',
-    password: options.password,
-    privateKey: options.key,
-    sudoPassword: options.sudoPassword || options.password,
-    hostAddress: options.hostAddress,
-    workspaceRoot: options.workspace || '.',
-    registryHost: options.registry,
-  };
+  const body = buildTargetBody(options, true);
 
   const target = await apiFetch('/deployment-targets', {
     method: 'POST',
@@ -69,6 +103,46 @@ export async function createTarget(options: TargetOptions) {
   console.log(
     `Deployment server added: ${chalk.bold(target.name)} (ID: ${target.id})`,
   );
+  console.log(`  Workspace: ${target.workspaceRoot || '.'}`);
+  console.log(
+    `  Registry: ${target.registryHost || `${target.hostAddress || target.host}:5000`}`,
+  );
+}
+
+export async function updateTarget(idOrName: string, options: TargetOptions) {
+  const id = await resolveTargetId(idOrName);
+  const body = buildTargetBody(options);
+
+  if (Object.keys(body).length === 0) {
+    throw new Error('No update options provided.');
+  }
+
+  const target = await apiFetch(`/deployment-targets/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  });
+
+  const chalk = await getChalk();
+  console.log(`Deployment server updated: ${chalk.bold(target.name)} (ID: ${target.id})`);
+}
+
+export async function provisionTarget(idOrName: string) {
+  const id = await resolveTargetId(idOrName);
+  const result = await apiFetch(`/deployment-targets/${id}/provision`, {
+    method: 'POST',
+  });
+
+  const target = result.target || result;
+  const chalk = await getChalk();
+  console.log(
+    `Provisioning started for ${chalk.bold(target.name || idOrName)} (ID: ${id})`,
+  );
+  if (result.status?.registryHost) {
+    console.log(`  Registry: ${result.status.registryHost}`);
+  }
+  if (result.status?.letsEncryptIssuer) {
+    console.log(`  Issuer: ${result.status.letsEncryptIssuer}`);
+  }
 }
 
 export async function deleteTarget(id: string) {
@@ -78,6 +152,9 @@ export async function deleteTarget(id: string) {
 
 export async function resolveTargetId(idOrName?: string): Promise<number | undefined> {
   if (!idOrName) return undefined;
+  if (/^(default|default-server|default_server)$/i.test(idOrName)) {
+    return undefined;
+  }
   if (/^\d+$/.test(idOrName)) return Number(idOrName);
 
   const targets = await apiFetch('/deployment-targets');

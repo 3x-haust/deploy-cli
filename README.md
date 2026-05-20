@@ -141,6 +141,8 @@ Register SSH servers in the Deploy API and select them when deploying:
 ```bash
 deploy targets add --name prod --host 125.186.161.87 --port 2202 --user ubuntu --password '...'
 deploy targets list
+deploy targets update prod --workspace /home/ubuntu/apps --registry 125.186.161.87:5000
+deploy targets provision prod
 deploy deploy my-project --target prod
 deploy redeploy my-project --target prod
 ```

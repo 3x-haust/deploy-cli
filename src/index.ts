@@ -21,6 +21,8 @@ import {
   createTarget,
   deleteTarget,
   listTargets,
+  provisionTarget,
+  updateTarget,
 } from './commands/targets.js';
 import {
   skillsListCommand,
@@ -140,6 +142,28 @@ targets
   .option('--workspace <path>', 'Remote workspace root', '.')
   .option('--registry <hostPort>', 'Docker registry host:port')
   .action((opts) => createTarget(opts).catch(handleError));
+
+targets
+  .command('update <server>')
+  .alias('edit')
+  .description('Update an SSH deployment server')
+  .option('--name <name>', 'Display name')
+  .option('--host <host>', 'Server IP or host')
+  .option('--port <port>', 'SSH port')
+  .option('--user <user>', 'SSH user')
+  .option('--password <password>', 'SSH password')
+  .option('--key <privateKey>', 'SSH private key contents')
+  .option('--sudo-password <password>', 'sudo password')
+  .option('--host-address <address>', 'Address reachable by cluster/registry')
+  .option('--workspace <path>', 'Remote workspace root')
+  .option('--registry <hostPort>', 'Docker registry host:port')
+  .action((server, opts) => updateTarget(server, opts).catch(handleError));
+
+targets
+  .command('provision <server>')
+  .alias('bootstrap')
+  .description('Install Docker, k3s, registry, ingress, cert-manager, and issuer on a server')
+  .action((server) => provisionTarget(server).catch(handleError));
 
 targets
   .command('delete <id>')
