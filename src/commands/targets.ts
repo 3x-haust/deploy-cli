@@ -12,6 +12,10 @@ interface TargetOptions {
   hostAddress?: string;
   workspace?: string;
   registry?: string;
+  domain?: string;
+  cloudflareToken?: string;
+  cloudflareZone?: string;
+  cloudflareProxied?: boolean;
 }
 
 function defaultRegistryHost(host?: string, hostAddress?: string) {
@@ -40,10 +44,18 @@ function buildTargetBody(options: TargetOptions, requireHost = false) {
     body.authType = 'password';
     body.password = options.password;
   }
-  if (options.sudoPassword !== undefined) body.sudoPassword = options.sudoPassword;
+  if (options.sudoPassword !== undefined)
+    body.sudoPassword = options.sudoPassword;
   if (options.hostAddress !== undefined) body.hostAddress = options.hostAddress;
   if (options.workspace !== undefined) body.workspaceRoot = options.workspace;
   if (options.registry !== undefined) body.registryHost = options.registry;
+  if (options.domain !== undefined) body.domainSuffix = options.domain;
+  if (options.cloudflareToken !== undefined)
+    body.cloudflareApiToken = options.cloudflareToken;
+  if (options.cloudflareZone !== undefined)
+    body.cloudflareZoneId = options.cloudflareZone;
+  if (options.cloudflareProxied !== undefined)
+    body.cloudflareProxied = options.cloudflareProxied;
 
   if (requireHost) {
     body.name = options.name || options.host;
@@ -56,7 +68,12 @@ function buildTargetBody(options: TargetOptions, requireHost = false) {
     body.hostAddress = options.hostAddress;
     body.workspaceRoot = options.workspace || '.';
     body.registryHost =
-      options.registry || defaultRegistryHost(options.host, options.hostAddress);
+      options.registry ||
+      defaultRegistryHost(options.host, options.hostAddress);
+    body.domainSuffix = options.domain;
+    body.cloudflareApiToken = options.cloudflareToken;
+    body.cloudflareZoneId = options.cloudflareZone;
+    body.cloudflareProxied = options.cloudflareProxied ?? false;
   }
 
   return body;
@@ -72,7 +89,17 @@ export async function listTargets() {
   }
 
   const table = await createTable({
-    head: ['ID', 'Name', 'Host', 'User', 'Auth', 'Workspace', 'Registry', 'Status'],
+    head: [
+      'ID',
+      'Name',
+      'Host',
+      'User',
+      'Auth',
+      'Workspace',
+      'Registry',
+      'Domain',
+      'Status',
+    ],
   });
 
   for (const target of targets) {
@@ -84,6 +111,7 @@ export async function listTargets() {
       target.authType,
       target.workspaceRoot || '.',
       target.registryHost || `${target.hostAddress || target.host}:5000`,
+      target.domainSuffix || '-',
       target.provisionStatus || 'not_provisioned',
     ]);
   }
@@ -107,6 +135,9 @@ export async function createTarget(options: TargetOptions) {
   console.log(
     `  Registry: ${target.registryHost || `${target.hostAddress || target.host}:5000`}`,
   );
+  if (target.domainSuffix) {
+    console.log(`  Domain:   *.${target.domainSuffix}`);
+  }
 }
 
 export async function updateTarget(idOrName: string, options: TargetOptions) {
@@ -123,7 +154,9 @@ export async function updateTarget(idOrName: string, options: TargetOptions) {
   });
 
   const chalk = await getChalk();
-  console.log(`Deployment server updated: ${chalk.bold(target.name)} (ID: ${target.id})`);
+  console.log(
+    `Deployment server updated: ${chalk.bold(target.name)} (ID: ${target.id})`,
+  );
 }
 
 export async function provisionTarget(idOrName: string) {
@@ -150,7 +183,9 @@ export async function deleteTarget(id: string) {
   console.log(`Deployment server ${id} deleted.`);
 }
 
-export async function resolveTargetId(idOrName?: string): Promise<number | undefined> {
+export async function resolveTargetId(
+  idOrName?: string,
+): Promise<number | undefined> {
   if (!idOrName) return undefined;
   if (/^(default|default-server|default_server)$/i.test(idOrName)) {
     return undefined;

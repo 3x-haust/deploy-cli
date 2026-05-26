@@ -1,11 +1,28 @@
 import { Command } from 'commander';
 import { loginCommand } from './commands/login.js';
-import { listProjects, getProject, createProject, deleteProject, inspectProject } from './commands/projects.js';
+import {
+  listProjects,
+  getProject,
+  createProject,
+  deleteProject,
+  inspectProject,
+} from './commands/projects.js';
 import { deployCommand, redeployCommand } from './commands/deploy.js';
 import { logsCommand, deploymentsCommand } from './commands/logs.js';
-import { envListCommand, envSetCommand, envDeleteCommand } from './commands/env.js';
-import { settingsGetCommand, settingsUpdateCommand } from './commands/settings.js';
-import { membersListCommand, membersInviteCommand, membersRemoveCommand } from './commands/members.js';
+import {
+  envListCommand,
+  envSetCommand,
+  envDeleteCommand,
+} from './commands/env.js';
+import {
+  settingsGetCommand,
+  settingsUpdateCommand,
+} from './commands/settings.js';
+import {
+  membersListCommand,
+  membersInviteCommand,
+  membersRemoveCommand,
+} from './commands/members.js';
 import { reposListCommand, branchesCommand } from './commands/repos.js';
 import { blueprintCommand } from './commands/blueprint.js';
 import {
@@ -36,7 +53,9 @@ const program = new Command();
 
 program
   .name('deploy')
-  .description('CLI for Deploy platform — manage projects and deployments from the terminal')
+  .description(
+    'CLI for Deploy platform — manage projects and deployments from the terminal',
+  )
   .version(__PKG_VERSION__);
 
 // ── Auth ──
@@ -54,7 +73,9 @@ program
       const { apiFetch } = await import('./api.js');
       const user = await apiFetch('/auth/me');
       console.log(`Logged in as ${user.username} (${user.role})`);
-    } catch (e) { handleError(e); }
+    } catch (e) {
+      handleError(e);
+    }
   });
 
 // ── Projects ──
@@ -80,7 +101,10 @@ projects
   .option('-d, --domain <domain>', 'Custom domain')
   .option('-e, --env <KEY=VALUE...>', 'Private env variables', collect, [])
   .option('--public-env <KEY=VALUE...>', 'Public env variables', collect, [])
-  .option('-s, --strategy <strategy>', 'Deployment strategy (rolling-update|blue-green|canary)')
+  .option(
+    '-s, --strategy <strategy>',
+    'Deployment strategy (rolling-update|blue-green|canary)',
+  )
   .option('-t, --target <server>', 'Deployment server ID or name')
   .option('--no-deploy', 'Create without deploying')
   .action((opts) => createProject(opts).catch(handleError));
@@ -141,6 +165,16 @@ targets
   .option('--host-address <address>', 'Address reachable by cluster/registry')
   .option('--workspace <path>', 'Remote workspace root', '.')
   .option('--registry <hostPort>', 'Docker registry host:port')
+  .option(
+    '--domain <domain>',
+    'Cloudflare root domain for projects on this server',
+  )
+  .option(
+    '--cloudflare-token <token>',
+    'Cloudflare API token for this server domain',
+  )
+  .option('--cloudflare-zone <zoneId>', 'Cloudflare zone ID')
+  .option('--cloudflare-proxied', 'Enable Cloudflare proxy for DNS records')
   .action((opts) => createTarget(opts).catch(handleError));
 
 targets
@@ -157,12 +191,25 @@ targets
   .option('--host-address <address>', 'Address reachable by cluster/registry')
   .option('--workspace <path>', 'Remote workspace root')
   .option('--registry <hostPort>', 'Docker registry host:port')
+  .option(
+    '--domain <domain>',
+    'Cloudflare root domain for projects on this server',
+  )
+  .option(
+    '--cloudflare-token <token>',
+    'Cloudflare API token for this server domain',
+  )
+  .option('--cloudflare-zone <zoneId>', 'Cloudflare zone ID')
+  .option('--cloudflare-proxied', 'Enable Cloudflare proxy for DNS records')
+  .option('--no-cloudflare-proxied', 'Disable Cloudflare proxy for DNS records')
   .action((server, opts) => updateTarget(server, opts).catch(handleError));
 
 targets
   .command('provision <server>')
   .alias('bootstrap')
-  .description('Install Docker, k3s, registry, ingress, cert-manager, and issuer on a server')
+  .description(
+    'Install Docker, k3s, registry, ingress, cert-manager, and issuer on a server',
+  )
   .action((server) => provisionTarget(server).catch(handleError));
 
 targets
@@ -197,7 +244,9 @@ env
   .command('set <project> <KEY=VALUE>')
   .description('Set an env variable')
   .option('-t, --target <target>', 'Target: backend|frontend|all', 'backend')
-  .action((project, kv, opts) => envSetCommand(project, kv, opts).catch(handleError));
+  .action((project, kv, opts) =>
+    envSetCommand(project, kv, opts).catch(handleError),
+  );
 
 env
   .command('delete <project> <key>')
@@ -206,7 +255,9 @@ env
   .action((project, key) => envDeleteCommand(project, key).catch(handleError));
 
 // ── Settings ──
-const settings = program.command('settings').description('Manage project settings');
+const settings = program
+  .command('settings')
+  .description('Manage project settings');
 
 settings
   .command('get <project>')
@@ -234,10 +285,14 @@ settings
   .option('--no-pvc', 'Disable PVC')
   .option('--pvc-size <size>', 'PVC size (e.g. 5Gi)')
   .option('--pvc-mount-path <path>', 'PVC mount path')
-  .action((project, opts) => settingsUpdateCommand(project, opts).catch(handleError));
+  .action((project, opts) =>
+    settingsUpdateCommand(project, opts).catch(handleError),
+  );
 
 // ── Members ──
-const members = program.command('members').description('Manage project members');
+const members = program
+  .command('members')
+  .description('Manage project members');
 
 members
   .command('list <project>')
@@ -248,15 +303,21 @@ members
 members
   .command('invite <project> <username>')
   .description('Invite a user to the project')
-  .action((project, username) => membersInviteCommand(project, username).catch(handleError));
+  .action((project, username) =>
+    membersInviteCommand(project, username).catch(handleError),
+  );
 
 members
   .command('remove <project> <userId>')
   .description('Remove a member from the project')
-  .action((project, userId) => membersRemoveCommand(project, userId).catch(handleError));
+  .action((project, userId) =>
+    membersRemoveCommand(project, userId).catch(handleError),
+  );
 
 // ── Repos ──
-const repos = program.command('repos').description('Browse GitHub repositories');
+const repos = program
+  .command('repos')
+  .description('Browse GitHub repositories');
 
 repos
   .command('list')
@@ -279,7 +340,9 @@ program
 // ── Secrets (local machine only) ──
 const secrets = program
   .command('secrets')
-  .description('Manage local secrets (SSH creds, tokens) — stored 0600 in ~/.deploy-cli');
+  .description(
+    'Manage local secrets (SSH creds, tokens) — stored 0600 in ~/.deploy-cli',
+  );
 
 secrets
   .command('list')
@@ -350,7 +413,10 @@ skills
 skills
   .command('install [name]')
   .description('Copy bundled skills to ~/.claude/skills (or a project dir)')
-  .option('--project <path>', 'Install into <path>/.claude/skills instead of user home')
+  .option(
+    '--project <path>',
+    'Install into <path>/.claude/skills instead of user home',
+  )
   .option('--force', 'Overwrite existing skill files')
   .action((name, opts) => skillsInstallCommand(name, opts).catch(handleError));
 
@@ -358,7 +424,9 @@ skills
   .command('uninstall <name>')
   .description('Remove an installed skill')
   .option('--project <path>', 'Uninstall from <path>/.claude/skills')
-  .action((name, opts) => skillsUninstallCommand(name, opts).catch(handleError));
+  .action((name, opts) =>
+    skillsUninstallCommand(name, opts).catch(handleError),
+  );
 
 // ── Helpers ──
 function collect(value: string, previous: string[]): string[] {
