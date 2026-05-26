@@ -1,6 +1,6 @@
 {
   "name": "@3xhaust/deploy-cli",
-  "version": "1.3.1",
+  "version": "1.3.2",
   "description": "CLI for Deploy platform - AI-friendly deployment management",
   "type": "module",
   "bin": {
